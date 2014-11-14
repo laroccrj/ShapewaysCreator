@@ -4,49 +4,81 @@ using System.Collections;
 public class Builder : MonoBehaviour {
 
 	public GameObject objToBuild;
-	public GameObject cube;
+	public GameObject objToPlace;
+	public Texture2D crosshair;
+	public int crosshairWidth;
+	public int crosshairHeight;
+	public Material previewMaterial;
+	public GameObject previewTemplate;
+
+	private GameObject previousTemplate;
+	private bool previousShown = false;
+
+
+	void OnGUI() {
+		GUI.DrawTexture(new Rect((Screen.width - crosshairWidth) / 2, (Screen.height - crosshairHeight) /2, crosshairWidth, crosshairHeight), crosshair);
+	}
 
 	void Update() {
-		if(Input.GetMouseButtonDown(0)) {
-			Vector3 fwd = transform.TransformDirection(Vector3.forward);
-			RaycastHit hit;
-			if (Physics.Raycast(transform.position, fwd, out hit, 10)) {
-				GameObject newCube;
-				Vector3 hitPointRelativity = hit.collider.transform.position - hit.point;
-				Vector3 hitPointRelativityAbs = new Vector3(
-					Mathf.Abs(hitPointRelativity.x),
-					Mathf.Abs(hitPointRelativity.y),
-					Mathf.Abs(hitPointRelativity.z)
-				);
+		previewTemplate.GetComponent<MeshFilter>().mesh = objToPlace.GetComponent<MeshFilter>().mesh;
 
-				if(hitPointRelativityAbs.x > hitPointRelativityAbs.y && hitPointRelativityAbs.x > hitPointRelativityAbs.z) {
-					//X axis
-					if(hitPointRelativity.x >= 0) {
-						newCube = (GameObject)GameObject.Instantiate(cube, hit.collider.transform.position + (Vector3.left * cube.transform.localScale.x), Quaternion.identity);
-					}
-					else {
-						newCube = (GameObject)GameObject.Instantiate(cube, hit.collider.transform.position + (Vector3.right * cube.transform.localScale.x), Quaternion.identity);
-					}
-				}
-				else if(hitPointRelativityAbs.y > hitPointRelativityAbs.z) {
-					//Y axis
-					if(hitPointRelativity.y >= 0) {
-						newCube = (GameObject)GameObject.Instantiate(cube, hit.collider.transform.position + (Vector3.down * cube.transform.localScale.y), Quaternion.identity);
-					}
-					else {
-						newCube = (GameObject)GameObject.Instantiate(cube, hit.collider.transform.position + (Vector3.up * cube.transform.localScale.y), Quaternion.identity);
-					}
+		if(previousShown) {
+			GameObject.Destroy(previousTemplate);
+			previousShown = false;
+		}
+
+		bool mouseClicked = false;
+
+		if(Input.GetMouseButtonDown(0)) {
+			mouseClicked = true;
+		}
+
+		Vector3 fwd = transform.TransformDirection(Vector3.forward);
+		RaycastHit hit;
+		if (Physics.Raycast(transform.position, fwd, out hit, 10)) {
+			Vector3 newPosition;
+			Vector3 hitPointRelativity = hit.collider.transform.position - hit.point;
+			Vector3 hitPointRelativityAbs = new Vector3(
+				Mathf.Abs(hitPointRelativity.x),
+				Mathf.Abs(hitPointRelativity.y),
+				Mathf.Abs(hitPointRelativity.z)
+			);
+
+			if(hitPointRelativityAbs.x > hitPointRelativityAbs.y && hitPointRelativityAbs.x > hitPointRelativityAbs.z) {
+				//X axis
+				if(hitPointRelativity.x >= 0) {
+					newPosition = hit.collider.transform.position + (Vector3.left * objToPlace.transform.localScale.x);
 				}
 				else {
-					if(hitPointRelativity.z >= 0) {
-						newCube = (GameObject)GameObject.Instantiate(cube, hit.collider.transform.position + (Vector3.back * cube.transform.localScale.z), Quaternion.identity);
-					}
-					else {
-						newCube = (GameObject)GameObject.Instantiate(cube, hit.collider.transform.position + (Vector3.forward * cube.transform.localScale.z), Quaternion.identity);
-					}
+					newPosition = hit.collider.transform.position + (Vector3.right * objToPlace.transform.localScale.x);
 				}
+			}
+			else if(hitPointRelativityAbs.y > hitPointRelativityAbs.z) {
+				//Y axis
+				if(hitPointRelativity.y >= 0) {
+					newPosition = hit.collider.transform.position + (Vector3.down * objToPlace.transform.localScale.y);
+				}
+				else {
+					newPosition = hit.collider.transform.position + (Vector3.up * objToPlace.transform.localScale.y);
+				}
+			}
+			else {
+				if(hitPointRelativity.z >= 0) {
+					newPosition = hit.collider.transform.position + (Vector3.back * objToPlace.transform.localScale.z);
+				}
+				else {
+					newPosition = hit.collider.transform.position + (Vector3.forward * objToPlace.transform.localScale.z);
+				}
+			}
 
-				newCube.transform.parent = objToBuild.transform;
+			if(mouseClicked) {
+				GameObject newObj = (GameObject)GameObject.Instantiate(objToPlace, newPosition, Quaternion.identity);
+				newObj.transform.parent = objToBuild.transform;
+			}
+			else {
+				GameObject newObj = (GameObject)GameObject.Instantiate(previewTemplate, newPosition, Quaternion.identity);
+				previousTemplate = newObj;
+				previousShown = true;
 			}
 		}
 
