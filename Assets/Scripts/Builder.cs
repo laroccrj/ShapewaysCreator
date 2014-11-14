@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using OAuth;
 
 public class Builder : MonoBehaviour {
 
@@ -20,7 +21,8 @@ public class Builder : MonoBehaviour {
 	}
 
 	void Update() {
-		previewTemplate.GetComponent<MeshFilter>().mesh = objToPlace.GetComponent<MeshFilter>().mesh;
+
+
 
 		if(previousShown) {
 			GameObject.Destroy(previousTemplate);
@@ -88,6 +90,7 @@ public class Builder : MonoBehaviour {
 	}
 
 	void Save () {
+
 		MeshFilter[] meshFilters = objToBuild.GetComponentsInChildren<MeshFilter>();
 		
 		CombineInstance[] combine = new CombineInstance[meshFilters.Length];
@@ -97,7 +100,6 @@ public class Builder : MonoBehaviour {
 			combine[i].transform = meshFilters[i].transform.localToWorldMatrix;
 			meshFilters[i].gameObject.SetActive(false);
 			i++;
-			Debug.Log ("test");
 		}
 		objToBuild.transform.GetComponent<MeshFilter>().mesh = new Mesh();
 		objToBuild.transform.GetComponent<MeshFilter>().mesh.CombineMeshes(combine);
@@ -105,5 +107,65 @@ public class Builder : MonoBehaviour {
 		MeshFilter mf = (MeshFilter)objToBuild.GetComponent("MeshFilter");
 		Debug.Log(Application.dataPath + '/' + "object.obj");
 		ObjExporter.MeshToFile(mf, Application.dataPath + '/' + "object.obj");
+		string obj = ObjExporter.MeshToString(mf);
+		StartCoroutine(Upload(obj));
+
+	}
+
+	IEnumerator Upload(string file) {
+		Debug.Log("test1");
+		Manager oauthManager = new Manager(
+			"747d6d77f805eaca20f1535050eaa3568396b685",
+			"c27d5555ecc20c1fd69d3a6338bc51c259d5ef11",
+			"8d58f1c79911ae7196f5cd9c0f0bdbc686fec32b",
+			"1e770408c0fdd5507b614b321fb8b1123bb9a9e7"
+			);
+		byte[] fileEncoded = System.Text.Encoding.UTF8.GetBytes(file);
+		oauthManager._params["fileName"] = "Object Test";
+		oauthManager._params["hasRightsToModel"] = "1";
+		oauthManager._params["acceptTermsAndConditions"] = "1";
+		oauthManager._params["file"] = System.Text.Encoding.UTF8.GetString(fileEncoded);
+		string oauthHeaders = oauthManager.GenerateAuthzHeader("http://api.shapeways.com/models/v1" , "POST");
+
+		WWWForm wwwForm = new WWWForm();
+		wwwForm.AddField("fileName", "Object Test");
+		wwwForm.AddField("hasRightsToModel", 1);
+		wwwForm.AddField("acceptTermsAndConditions", 1);
+		Debug.Log(file);
+		wwwForm.AddBinaryData("file", fileEncoded);
+		
+		Hashtable headers = wwwForm.headers;
+		headers["Authorization"] = oauthHeaders;
+		Debug.Log("Keys");
+		foreach (DictionaryEntry de in headers)
+		{        
+			string fieldName = de.Key as string;         
+			Debug.Log(fieldName); 
+		}
+		Debug.Log (headers["Content-type"]);
+
+		Debug.Log (System.Text.Encoding.UTF8.GetString(wwwForm.data));
+
+		Debug.Log("Starting request");
+		WWW www = new WWW("http://api.shapeways.com/models/v1", wwwForm.data, headers);
+		yield return www;
+
+		Debug.Log("Response is in");
+		Debug.Log(www.text);
+
+	}
+
+	static byte[] GetBytes(string str)
+	{
+		byte[] bytes = new byte[str.Length * sizeof(char)];
+		System.Buffer.BlockCopy(str.ToCharArray(), 0, bytes, 0, bytes.Length);
+		return bytes;
+	}
+
+	static string GetString(byte[] bytes)
+	{
+		char[] chars = new char[bytes.Length / sizeof(char)];
+		System.Buffer.BlockCopy(bytes, 0, chars, 0, bytes.Length);
+		return new string(chars);
 	}
 }
